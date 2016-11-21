@@ -2,6 +2,7 @@ use "ev/hash-array-int.sml";
 use "ev/ev-kqueue-poly.sml";
 use "sparcl/sparcl-string.sml";
 use "redis-parser.sml";
+use "os-constants.sml";
 use "with-poly.sml";
 use "list-buf.sml";
 use "parse-args.sml";

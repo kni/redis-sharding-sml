@@ -24,12 +24,9 @@ local
   open Foreign
   val libc = loadExecutable ()
   val setsockopt_ffi = buildCall5 ((getSymbol libc "setsockopt"), (cInt, cInt, cInt, cConstStar cInt, cInt), cInt) 
-
-  val SOL_SOCKET = 0xffff and SO_REUSEPORT = 0x0200 (* FreeBSD *)
-  (* val SOL_SOCKET = 1 and SO_REUSEPORT = 15 *) (* Linux *)
 in
   fun setsockopt_REUSEPORT fd =
-    if setsockopt_ffi(fd, SOL_SOCKET, SO_REUSEPORT, 1, 4) = ~1
+    if setsockopt_ffi(fd, OS_Constants.SOL_SOCKET, OS_Constants.SO_REUSEPORT, 1, 4) = ~1
     then raise Socket "Cannot set SO_REUSEPORT option on socket"
     else ()
 end
