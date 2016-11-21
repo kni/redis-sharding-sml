@@ -20,7 +20,8 @@ local
              progName ^ " --nodes=10.1.1.2:6380,10.1.1.3:6380,...\n\n" ^
              "Others parameters:\n--host=10.1.1.1\n--port=6379\n" ^
              "--timeout=300 (0 - disable timeout)\n" ^
-             "--N=0 (set > 0 to use fork (MLton) or threads (PolyML))\n"
+             "--N=0 (set > 0 to use fork (MLton) or threads (PolyML))\n" ^
+             "--SO_REUSEPORT=0\n"
 
   fun printError msg = print (msg ^ "\n" ^ help)
  
@@ -34,12 +35,14 @@ in
      val nodes   = getArg("nodes", "")
      val timeout = getArg("timeout", "300")
      val N       = getArg("N", "0")
+     val SO_REUSEPORT = getArg("SO_REUSEPORT", "0")
 
    in
      if nodes = "" then (printError "Parameter 'nodes' is required.\n"; NONE) else
      case Int.fromString port         of NONE => (printError "Parameter 'port' must be int.\n"; NONE) | SOME port =>
      case LargeInt.fromString timeout of NONE => (printError "Parameter 'timeout' must be int.\n"; NONE) | SOME timeout =>
      case Int.fromString N            of NONE => (printError "Parameter 'N' must be int.\n"; NONE) | SOME N =>
+     case Int.fromString SO_REUSEPORT of NONE => (printError "Parameter 'SO_REUSEPORT' must be int.\n"; NONE) | SOME SO_REUSEPORT =>
      let
        val nodes = List.filter (fn(x,y) => (x <> "") andalso (y <> "")) 
                    (List.map (( fn (x::y::nil) => (x, y) | _ => ("", "") ) o splitWith #":") (splitWith #"," nodes))
@@ -49,7 +52,7 @@ in
 
      in
        case nodesPortToInt nodes [] of NONE => NONE | SOME nodes =>
-       SOME (host, port, nodes, timeout, N)
+       SOME (host, port, nodes, timeout, N, SO_REUSEPORT)
      end
    end
 end

@@ -751,7 +751,7 @@ fun main_handle' (listen_sock, servers, client_timeout, N) =
 
 
 fun main_handle () =
-  case getParam (CommandLine.arguments ()) of NONE => () | SOME (listen_host, listen_port, nodes, timeout, N) =>
+  case getParam (CommandLine.arguments ()) of NONE => () | SOME (listen_host, listen_port, nodes, timeout, N, SO_REUSEPORT) =>
   let
     val servers = Vector.fromList nodes
     val client_timeout = Time.fromSeconds timeout
@@ -768,7 +768,7 @@ fun main_handle () =
       in
         printLog ("Listening on " ^ host ^ ":" ^ (Int.toString port) ^ ".");
         Socket.Ctl.setREUSEADDR (sock, true);
-        (* setsockopt_REUSEPORT fd; *) (* for Linux 3.9 or DragonFlyBSD *)
+        if SO_REUSEPORT = 0 then () else setsockopt_REUSEPORT fd; (* for Linux 3.9 or DragonFlyBSD *)
         Socket.bind (sock, addr);
         Socket.listen (sock, listen_cnt);
         sock

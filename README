@@ -7,8 +7,15 @@ Worked on *BSD and Linux.
 
 Building: make poly or make mlton
 
-To use multiprocessing (argument --N n, where n - count OS process or threads) on Linux (fork for MLton and threads for PolyML),
-you must uncomment setsockopt_REUSEPORT function call in redis-sharding.sml.
+For Linux replace kqueue on epoll in redis-sharding.ml* files.
+
+To use multiprocessing you must set argument --N n, where n - count OS process (MLton) or threads (PolyML).
+If you use Linux and want use multiprocessing, you must have kernel 3.9 and above and set SO_REUSEPORT argument to 1.
+
+Examples:
+FreeBSD ./redis-sharding-mlton --nodes=127.0.0.1:8081,127.0.0.1:8082,127.0.0.1:8083,127.0.0.1:8084 --N=4
+Linux   ./redis-sharding-mlton --nodes=127.0.0.1:8081,127.0.0.1:8082,127.0.0.1:8083,127.0.0.1:8084 --N=4 --SO_REUSEPORT=1
+
 
 
 Benchmark
