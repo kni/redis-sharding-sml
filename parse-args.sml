@@ -20,7 +20,7 @@ local
              progName ^ " --nodes=10.1.1.2:6380,10.1.1.3:6380,...\n\n" ^
              "Others parameters:\n--host=10.1.1.1\n--port=6379\n" ^
              "--timeout=300 (0 - disable timeout)\n" ^
-             "--N=0 (set > 0 to use fork (MLton) or threads (PolyML))\n" ^
+             "--N=0 (OS thread count)\n" ^
              "--SO_REUSEPORT=0\n"
 
   fun printError msg = print (msg ^ "\n" ^ help)

@@ -32,6 +32,7 @@ cpuset -l 0 time ./redis-sharding-mlton @MLton fixed-heap 20M -- --port=8080 --n
 cpuset -l 0 time ./redis-sharding-poly --minheap 20M --maxheap 20M --port=8080 --nodes=127.0.0.1:8081,127.0.0.1:8082,127.0.0.1:8083,127.0.0.1:8084
 
 
+                                Thousands of requests per second
                  Haskell          MLton            PolyML           Redis direct
 -P 1; SET        33 (32 - 34)     52 (51 - 55)     44 (42 - 46)     56 (53 - 58)
 -P 1; GET        34 (33 - 35)     51 (48 - 52)     40 (37 - 45)     59 (57 - 61)
@@ -72,6 +73,7 @@ cpuset -l 0 time ./redis-sharding-mlton   --port=8080 --nodes=127.0.0.1:8081,127
 cpuset -l 0 time ./redis-sharding-poly    --port=8080 --nodes=127.0.0.1:8081,127.0.0.1:8082,127.0.0.1:8083,127.0.0.1:8084
 
 
+                                Thousands of requests per second
                  Haskell         -A10M    MLton            PolyML           Redis direct
 -P 1; SET        33 (31 - 34)    34       53 (51 - 54)     39 (31 - 45)     56 (53 - 58)
 -P 1; GET        33 (32 - 34)    34       52 (50 - 53)     35 (34 - 37)     59 (57 - 61)
