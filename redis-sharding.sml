@@ -576,7 +576,8 @@ fun servers_stream ev c_info s_info get_cmd clean set_time_last_activity =
         val size = Vector.foldl (fn (data, size) => size + read_and_send data ) 0 s_data
       in
         free_size_todo := (!free_size_todo) - size;
-        if (!free_size_todo) = 0 then ( clean_current_cmd (); to_current_cmd () ) else ()
+        if (!free_size_todo) = 0 then ( clean_current_cmd (); to_current_cmd () ) else
+        if (size > 0) then do_free_read_all () (* Нужно, так как когда bulk в двух tcp кусках идет *) else ()
       end
 
 
@@ -782,7 +783,7 @@ fun main_handle () =
   end
 
 
-val version = "3.1"
+val version = "3.2"
 
 fun main' () = (
   printLog ("Start RedisSharding SML, (version - " ^ version ^ ").");
