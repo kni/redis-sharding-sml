@@ -782,7 +782,7 @@ fun main_handle () =
   end
 
 
-val version = "0.1"
+val version = "3.1"
 
 fun main' () = (
   printLog ("Start RedisSharding SML, (version - " ^ version ^ ").");
