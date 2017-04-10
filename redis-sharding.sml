@@ -76,7 +76,7 @@ end
 fun printLog msg = print ((Date.fmt "%Y-%m-%d %H:%M:%S" (Date.fromTimeUniv(Time.now()))) ^ "\t" ^ msg ^ "\n")
 
 
-fun client_stream ev c_info s_info set_cmd clean servers_stream_up c_send_and_flush =
+fun client_stream ev c_info s_info set_cmd clean servers_stream_up c_send_and_flush c_send_and_close = (
   let
     val (c_sock, c_fd) = c_info
     val c_actived = ref false
@@ -284,9 +284,9 @@ fun client_stream ev c_info s_info set_cmd clean servers_stream_up c_send_and_fl
                   else c_parse t
                 end
               )
-          | Done _  => (c_send_and_flush ["-ERR unified protocol error\r\n"]; Substring.full "")
+          | Done _  => (c_send_and_close ["-ERR unified protocol error from client\r\n"]; Substring.full "")
           | Partial => buf
-          | Fail    => (c_send_and_flush ["-ERR unified protocol error\r\n"]; Substring.full "")
+          | Fail    => (c_send_and_close ["-ERR unified protocol error from client\r\n"]; Substring.full "")
 
         (* val buf = (!c_buf) ^ s *)
         val buf = String.^((!c_buf), s)
@@ -296,10 +296,11 @@ fun client_stream ev c_info s_info set_cmd clean servers_stream_up c_send_and_fl
   in
     c_enable ()
   end
+)
 
 
 
-fun servers_stream ev c_info s_info get_cmd clean set_time_last_activity =
+fun servers_stream ev c_info s_info get_cmd clean set_time_last_activity = (
   let
     fun s_info_to_s_data (sock, fd) = { sock = sock, fd = fd, actived = ref false, buf = ref (Substring.full ""),
         base_reply  = ref NONE, (* Используется только для BaseServerReadMode *)
@@ -311,6 +312,7 @@ fun servers_stream ev c_info s_info get_cmd clean set_time_last_activity =
     val c_actived = ref false
     val c_buf     = ref ""
     val c_channel = ref ListBuf.empty
+    val c_need_close_flag = ref false
 
     val read_mode = ref BaseServerReadMode
 
@@ -515,7 +517,11 @@ fun servers_stream ev c_info s_info get_cmd clean set_time_last_activity =
       in
         c_buf := tail;
         if tail = ""
-        then (c_disable (); s_enable_all () )
+        then (
+          c_disable ();
+          if !c_need_close_flag then clean () else
+          s_enable_all ()
+        )
         else ()
       end
 
@@ -595,24 +601,32 @@ fun servers_stream ev c_info s_info get_cmd clean set_time_last_activity =
       let
         val size = foldl (fn(s, size) => size + String.size s) 0 ss
       in
+        if !c_need_close_flag then () else
+        (
         c_channel := ListBuf.add(!c_channel) ss;
         if ListBuf.size(!c_channel) >= send_size
         then c_flush ()
         else ()
+        )
       end
 
    and c_send_and_flush s = (c_send s; c_flush (); set_time_last_activity ())
 
+   and c_need_close () = (c_enable (); c_need_close_flag := true)
+
    and s_proto_error () =
      let val msg = "-ERR unified protocol error from server" in
-     printLog msg; c_send_and_flush [msg, "\r\n"]; clean () end
+     printLog msg; c_send_and_flush [msg, "\r\n"]; c_need_close () end
+
+   and c_send_and_close s = (c_send_and_flush s; c_need_close ())
 
   in
-    (s_enable_all, c_send_and_flush )
+    (s_enable_all, c_send_and_flush, c_send_and_close)
   end
+)
 
 
-fun main_handle' (listen_sock, servers, client_timeout, N) =
+fun main_handle' (listen_sock, servers, client_timeout, N) = (
   let
 
     (* ToDo *)
@@ -695,12 +709,12 @@ fun main_handle' (listen_sock, servers, client_timeout, N) =
 
       val connected = ( connect (); true ) handle exc => ( clean () ; printLog ("function connect raised an exception: " ^ exnMessage exc); false )
 
-      val (servers_stream_up, c_send_and_flush) = servers_stream ev c_info s_info get_cmd clean set_time_last_activity
+      val (servers_stream_up, c_send_and_flush, c_send_and_close) = servers_stream ev c_info s_info get_cmd clean set_time_last_activity
       (* servers_stream_up вызывается из client_stream после set_cmd. servers_stream_up активирует чтение с серверов. *)
 
     in
       if connected = true
-      then client_stream ev c_info s_info set_cmd clean servers_stream_up c_send_and_flush
+      then client_stream ev c_info s_info set_cmd clean servers_stream_up c_send_and_flush c_send_and_close
       else ()
     end
 
@@ -749,6 +763,7 @@ fun main_handle' (listen_sock, servers, client_timeout, N) =
   in
     loop () handle exc => printLog ("function loop raised an exception: " ^ exnMessage exc)
   end
+)
 
 
 fun main_handle () =
@@ -783,7 +798,7 @@ fun main_handle () =
   end
 
 
-val version = "3.2"
+val version = "3.3"
 
 fun main' () = (
   printLog ("Start RedisSharding SML, (version - " ^ version ^ ").");
