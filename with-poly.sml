@@ -12,9 +12,9 @@ fun main_wrapper f x = (
 local 
   open Foreign
   val libz = loadLibrary "libz.so.6"
-  val crc32_zlib_ffi = buildCall3 ((getSymbol libz "crc32"), (cUlong, cString, cUint), cUlong)
+  val crc32_zlib_ffi = buildCall3 ((getSymbol libz "crc32"), (cUlong, cString, cUint), cLongLarge)
 in
-  fun crc32_zlib (s:string) : Word32.word = Word32.fromInt (crc32_zlib_ffi (0, s, String.size s))
+  fun crc32_zlib (s:string) : Word32.word = Word32.fromLargeInt (crc32_zlib_ffi (0, s, String.size s))
 end
 
 
