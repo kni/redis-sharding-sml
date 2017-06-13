@@ -186,8 +186,12 @@ fun split_cursor n c =
 
   in
     if c = "0"
-    then List.tabulate (n, (fn _ => "0"))
-    else loop n 0 []
+    then SOME (List.tabulate (n, (fn _ => "0")))
+    else (
+      if l > 0
+      then SOME (loop n 0 [])
+      else NONE
+    )
   end
 
 
@@ -195,13 +199,14 @@ fun split_cursor n c =
 (* По количество нод и коменде SCAN возвращает список пар: команда для конкретной ноды - номер ноды. *)
 fun splitScanCmdToMany n ((SOME cmd)::(SOME cursor)::args) =
   let
-    val c = split_cursor n cursor
 
     fun loop i (""::cs) r = loop (i + 1) cs r
       | loop i (c::cs)  r = loop (i + 1) cs ((((SOME cmd)::(SOME c)::args), i)::r)
       | loop _ []       r = r
 
   in
-    SOME (loop 0 c [])
+    case split_cursor n cursor of
+        NONE   => NONE
+      | SOME c => SOME (loop 0 c [])
   end
   | splitScanCmdToMany _  _ = NONE

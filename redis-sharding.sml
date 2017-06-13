@@ -202,6 +202,9 @@ fun client_stream ev c_info s_info set_cmd clean servers_stream_up c_send_and_fl
                               servers_stream_up ()
                             end
                      | SOME CmdToOne         => (* На конкретные сервер *)
+                            if List.null args 
+                            then c_send_and_flush ["-ERR wrong number of arguments for '" ^ cmd ^ "' command\r\n"]
+                            else
                             let
                               val arg = List.hd args
                               val s_addr = key2server (valOf arg) s_count
@@ -234,7 +237,7 @@ fun client_stream ev c_info s_info set_cmd clean servers_stream_up c_send_and_fl
                             (
                             (
                             case splitScanCmdToMany s_count ca of
-                                 NONE => c_send_and_flush ["-ERR wrong number of arguments for 'SCAN' command\r\n"]
+                                 NONE => c_send_and_flush ["-ERR wrong number of arguments for 'SCAN' command or invalid cursor\r\n"]
                                | SOME ca_and_s_addr =>
                                   let
                                     val(_, s_addrs) = ListPair.unzip ca_and_s_addr
