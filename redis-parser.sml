@@ -6,6 +6,7 @@ datatype CmdType =
  | CmdToMany        (* На множество серверов. CMD key1 ... keyN *)
  | CmdToManyValues  (* На множество серверов. CMD key1 value1 ... keyN valueN *)
  | CmdToManyTimeout (* На множество серверов. CMD key1 ... keyN timeout (блокирующие команды)*)
+ | CmdToManySpecial (* На множество серверов, для каждой команды - по своему, например, на основе курсора для SCAN команды *)
 
 fun cmdType "PING"             = SOME CmdToAll
   | cmdType "AUTH"             = SOME CmdToAll
@@ -87,14 +88,12 @@ fun cmdType "PING"             = SOME CmdToAll
   | cmdType "BLPOP"            = SOME CmdToManyTimeout
   | cmdType "BRPOP"            = SOME CmdToManyTimeout
 
+  | cmdType "SCAN"             = SOME CmdToManySpecial
+
   | cmdType _                  = NONE
 
 
 val _ = fn (cmd:string) => (cmdType cmd):(CmdType option)
-
-(* ToDo и для Haskell варианта сделать cmdType *)
-
-
 
 
 
@@ -161,3 +160,48 @@ fun cmd2stream [] = ["*0\r\n"]
     in
        h @ (List.concat t)
     end
+
+
+
+fun make_cursor rs =
+  let
+    val m  = List.foldl (fn (i,r) => let val l = String.size i in if l > r then l else r end ) 0 rs
+    val ss = List.map (fn i => "1" ^ (StringCvt.padLeft #"0" m i)) rs
+  in
+    if List.exists (fn i => i <> "10") ss
+    then String.concat ss
+    else "0"
+  end
+
+
+
+fun split_cursor n c =
+  let
+    val l = (String.size c) div n
+
+    fun dropl0 s = Substring.string (Substring.dropl (fn c => c = #"0") (Substring.extract (s, 1, NONE)))
+
+    fun loop 0 p r = List.rev (List.map dropl0 r)
+      | loop i p r = loop (i - 1) (p + l) ((String.substring (c, p, l)::r) )
+
+  in
+    if c = "0"
+    then List.tabulate (n, (fn _ => "0"))
+    else loop n 0 []
+  end
+
+
+
+(* По количество нод и коменде SCAN возвращает список пар: команда для конкретной ноды - номер ноды. *)
+fun splitScanCmdToMany n ((SOME cmd)::(SOME cursor)::args) =
+  let
+    val c = split_cursor n cursor
+
+    fun loop i (""::cs) r = loop (i + 1) cs r
+      | loop i (c::cs)  r = loop (i + 1) cs ((((SOME cmd)::(SOME c)::args), i)::r)
+      | loop _ []       r = r
+
+  in
+    SOME (loop 0 c [])
+  end
+  | splitScanCmdToMany _  _ = NONE

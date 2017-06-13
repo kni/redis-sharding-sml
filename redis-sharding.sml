@@ -229,6 +229,24 @@ fun client_stream ev c_info s_info set_cmd clean servers_stream_up c_send_and_fl
                             in
                               servers_stream_up ()
                             end
+                     | SOME CmdToManySpecial => (* На множество серверов, индивидуально для конкретной команды. CMD special ... *)
+                            (* Пока лишь для команды SCAN *)
+                            (
+                            (
+                            case splitScanCmdToMany s_count ca of
+                                 NONE => c_send_and_flush ["-ERR wrong number of arguments for 'SCAN' command\r\n"]
+                               | SOME ca_and_s_addr =>
+                                  let
+                                    val(_, s_addrs) = ListPair.unzip ca_and_s_addr
+                                  in
+                                    set_cmd (RCmd (cmd, s_addrs));
+                                    for ( fn (ca, s_addr) =>
+                                       to_channel s_addr (cmd2stream ca)
+                                    ) ca_and_s_addr
+                                  end
+                            );
+                            servers_stream_up ()
+                            )
                      | SOME CmdToManyValues  => (* На множество серверов. CMD key1 value1 ... keyN valueN *)
                             let
                               fun to_pair []        = []
@@ -314,10 +332,18 @@ fun servers_stream ev c_info s_info get_cmd clean set_time_last_activity = (
     val c_channel = ref ListBuf.empty
     val c_need_close_flag = ref false
 
+    val s_count = Vector.length s_info
+
     val read_mode = ref BaseServerReadMode
 
     val current_cmd : (RCmd * int list) option ref = ref NONE
-    fun clean_current_cmd () = (read_mode := BaseServerReadMode; current_cmd := NONE)
+
+    fun clean_current_cmd () = (
+        read_mode := BaseServerReadMode;
+        case !current_cmd of
+             SOME (RCmd ("SCAN", s_addrs), uniq_s_addrs) => (current_cmd := SOME (RCmd ("KEYS", s_addrs), uniq_s_addrs))
+           | _                                           =>  current_cmd := NONE
+      )
 
     val multi_read_s_addrs: int list ref = ref [] (* Используется только для MultiServerReadMode, откуда осталось еще прочитать *)
     val one_read:        (int * int) ref = ref (0, 0) (* Сколько еще прочитать и откуда, для OneServerReadMode *)
@@ -350,6 +376,15 @@ fun servers_stream ev c_info s_info get_cmd clean set_time_last_activity = (
         | Partial => ( s_enable_force data; false )
         | Fail    => ( s_proto_error (); false )
 
+
+    and read_bulk_return (data as { buf = buf, ... }) =
+      case server_parser (!buf) of
+          Done (r, t) => ( case r of
+                                RBulk r => ( buf := t; SOME r )
+                              | _       => NONE (* Уже другой команды данные *)
+                         )
+        | Partial => ( s_enable_force data; NONE )
+        | Fail    => ( s_proto_error (); NONE )
 
 
     and do_base_read (RCmd (cmd, s_addrs), uniq_s_addrs) =
@@ -398,7 +433,10 @@ fun servers_stream ev c_info s_info get_cmd clean set_time_last_activity = (
               val size = get_size rm
 
             in
-              c_send (size2stream size);
+              if cmd = "SCAN"
+              then c_send (size2stream 2)
+              else c_send (size2stream size);
+
               if size < 1
               then (
                 clean_current_cmd ();
@@ -417,7 +455,9 @@ fun servers_stream ev c_info s_info get_cmd clean set_time_last_activity = (
                     )
                   | _ => (
                       multi_read_s_addrs:= s_addrs;
-                      do_multi_read_all ()
+                      if cmd  = "SCAN"
+                      then do_multi_read_special ()
+                      else do_multi_read_all ()
                     )
               )
             end
@@ -552,6 +592,37 @@ fun servers_stream ev c_info s_info get_cmd clean set_time_last_activity = (
             end
       in
         loop (!multi_read_s_addrs)
+      end
+
+    and do_multi_read_special () =
+      (* Для SCAN. Похож на do_multi_read_all, на read_bulk не отправляет ответ, а формирую новый курсор, и уже с ним отправляет ответ *)
+      let
+
+        fun complite_and_make_cursor rs =
+          let
+            fun valOr _ [] = "0"
+              | valOr i ((k, v)::kvs) =
+                  if i = k
+                  then Option.valOf v
+                  else valOr i kvs
+
+            val new = List.tabulate (s_count, (fn i => valOr i rs ))
+          in
+            SOME (make_cursor new)
+          end
+
+        fun loop []          rs = (c_send (arg2stream (complite_and_make_cursor rs)); multi_read_s_addrs := []; clean_current_cmd (); to_current_cmd ())
+          | loop (l as i::t) rs =
+            let
+              val data = Vector.sub (s_data, i)
+            in
+              if Substring.isEmpty (! (#buf data)) then multi_read_s_addrs := l else
+              case read_bulk_return data of
+                   SOME r => loop t ((i, r)::rs)
+                 | NONE   => multi_read_s_addrs := l
+            end
+      in
+        loop (!multi_read_s_addrs) []
       end
 
     and do_one_read_all () =

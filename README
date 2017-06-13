@@ -17,6 +17,11 @@ FreeBSD ./redis-sharding-mlton --nodes=127.0.0.1:8081,127.0.0.1:8082,127.0.0.1:8
 Linux   ./redis-sharding-mlton --nodes=127.0.0.1:8081,127.0.0.1:8082,127.0.0.1:8083,127.0.0.1:8084 --N=4 --SO_REUSEPORT=1
 
 
+Note
+-----
+
+Cursor of SCAN command is integer of arbitrary precision.
+
 
 Benchmark
 ---------
