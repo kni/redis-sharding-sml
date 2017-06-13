@@ -76,6 +76,9 @@ fun cmdType "PING"             = SOME CmdToAll
   | cmdType "HVALS"            = SOME CmdToOne
   | cmdType "HGETALL"          = SOME CmdToOne
   | cmdType "PUBLISH"          = SOME CmdToOne
+  | cmdType "HSCAN"            = SOME CmdToOne
+  | cmdType "SSCAN"            = SOME CmdToOne
+  | cmdType "ZSCAN"            = SOME CmdToOne
 
   | cmdType "DEL"              = SOME CmdToMany
   | cmdType "MGET"             = SOME CmdToMany
