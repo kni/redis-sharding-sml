@@ -217,7 +217,7 @@ fun client_stream ev c_info s_info set_cmd clean servers_stream_up c_send_and_fl
                      | SOME CmdToMany        => (* На множество серверов. CMD key1 ... keyN *)
                             let
                               val arg_and_s_addr = map (fn arg => (arg, (key2server (valOf arg) s_count))) args
-                              val(_, s_addrs) = ListPair.unzip arg_and_s_addr
+                              val (_, s_addrs) = ListPair.unzip arg_and_s_addr
                               val uniq_s_addrs = isolate s_addrs
                               val _ = set_cmd (RCmd (cmd, s_addrs))
                               val _ = for ( fn s_addr =>
@@ -240,7 +240,7 @@ fun client_stream ev c_info s_info set_cmd clean servers_stream_up c_send_and_fl
                                  NONE => c_send_and_flush ["-ERR wrong number of arguments for 'SCAN' command or invalid cursor\r\n"]
                                | SOME ca_and_s_addr =>
                                   let
-                                    val(_, s_addrs) = ListPair.unzip ca_and_s_addr
+                                    val (_, s_addrs) = ListPair.unzip ca_and_s_addr
                                   in
                                     set_cmd (RCmd (cmd, s_addrs));
                                     for ( fn (ca, s_addr) =>
@@ -257,7 +257,7 @@ fun client_stream ev c_info s_info set_cmd clean servers_stream_up c_send_and_fl
                                 | to_pair (a::b::l) = (a,b)::(to_pair l)
 
                               val arg_and_s_addr = map (fn (k, v) => ((k, v), (key2server (valOf k) s_count))) (to_pair args)
-                              val(_, s_addrs) = ListPair.unzip arg_and_s_addr
+                              val (_, s_addrs) = ListPair.unzip arg_and_s_addr
                               val uniq_s_addrs = isolate s_addrs
                               val _ = set_cmd (RCmd (cmd, s_addrs))
                               val _ = for ( fn s_addr =>
@@ -278,7 +278,7 @@ fun client_stream ev c_info s_info set_cmd clean servers_stream_up c_send_and_fl
                               val timeout = List.last args
                               val keys = List.take(args, List.length args - 1)
                               val arg_and_s_addr = map (fn arg => (arg, (key2server (valOf arg) s_count))) keys
-                              val(_, s_addrs) = ListPair.unzip arg_and_s_addr
+                              val (_, s_addrs) = ListPair.unzip arg_and_s_addr
                               val uniq_s_addrs = isolate s_addrs
                               val _ = set_cmd (RCmd (cmd, s_addrs))
                             in
@@ -344,8 +344,11 @@ fun servers_stream ev c_info s_info get_cmd clean set_time_last_activity = (
     fun clean_current_cmd () = (
         read_mode := BaseServerReadMode;
         case !current_cmd of
-             SOME (RCmd ("SCAN", s_addrs), uniq_s_addrs) => (current_cmd := SOME (RCmd ("KEYS", s_addrs), uniq_s_addrs))
-           | _                                           =>  current_cmd := NONE
+             SOME (RCmd ("SCAN",  s_addrs), uniq_s_addrs) => (current_cmd := SOME (RCmd ("KEYS",     s_addrs), uniq_s_addrs))
+           | SOME (RCmd ("SSCAN", s_addrs), uniq_s_addrs) => (current_cmd := SOME (RCmd ("SMEMBERS", s_addrs), uniq_s_addrs))
+           | SOME (RCmd ("HSCAN", s_addrs), uniq_s_addrs) => (current_cmd := SOME (RCmd ("HMGET",    s_addrs), uniq_s_addrs))
+           | SOME (RCmd ("ZSCAN", s_addrs), uniq_s_addrs) => (current_cmd := SOME (RCmd ("ZRANGE",   s_addrs), uniq_s_addrs))
+           | _                                            =>  current_cmd := NONE
       )
 
     val multi_read_s_addrs: int list ref = ref [] (* Используется только для MultiServerReadMode, откуда осталось еще прочитать *)
@@ -436,7 +439,7 @@ fun servers_stream ev c_info s_info get_cmd clean set_time_last_activity = (
               val size = get_size rm
 
             in
-              if cmd = "SCAN"
+              if cmd = "SCAN" orelse cmd = "SSCAN" orelse cmd = "HSCAN" orelse cmd = "ZSCAN"
               then c_send (size2stream 2)
               else c_send (size2stream size);
 
@@ -453,7 +456,9 @@ fun servers_stream ev c_info s_info get_cmd clean set_time_last_activity = (
                       do_free_read_all ()
                     )
                   | OneServerReadMode => (
-                      one_read := (size, (List.hd s_addrs));
+                      if cmd = "SSCAN" orelse cmd = "HSCAN" orelse cmd = "ZSCAN"
+                      then one_read := (1, (List.hd s_addrs))
+                      else one_read := (size, (List.hd s_addrs));
                       do_one_read_all ()
                     )
                   | _ => (
@@ -872,7 +877,7 @@ fun main_handle () =
   end
 
 
-val version = "3.4"
+val version = "3.5"
 
 fun main' () = (
   printLog ("Start RedisSharding SML, (version - " ^ version ^ ").");
