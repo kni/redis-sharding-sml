@@ -20,10 +20,10 @@ end
 exception Socket of string
 
 local
-  val setsockopt_REUSEPORT_ffi = _import "setsockopt_REUSEPORT": int -> int;
+  val setsockopt_ffi = _import "setsockopt": int * int * int * int ref * int-> int;
 in
   fun setsockopt_REUSEPORT fd =
-    if setsockopt_REUSEPORT_ffi fd = ~1
+    if setsockopt_ffi (fd, OS_Constants.SOL_SOCKET, OS_Constants.SO_REUSEPORT, (ref 1), 4) = ~1
     then raise Socket "Cannot set SO_REUSEPORT option on socket"
     else ()
 end

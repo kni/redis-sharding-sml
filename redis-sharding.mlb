@@ -6,6 +6,7 @@ in
 	ev/ev-kqueue-mlton.sml
 	sparcl/sparcl-string.sml
 	redis-parser.sml
+	os-constants.sml
 	local
 		$(SML_LIB)/basis/build/sources.mlb
 	in
