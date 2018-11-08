@@ -1,6 +1,8 @@
 open Ev
 structure H = HashArrayInt
 
+datatype  ('a, 'b) ListenSocket = ListenSocket of ('a, 'b) Socket.sock | GetListenSocket of unit -> ('a, 'b) Socket.sock
+
 datatype RCmd = RCmd of string * int list (* Имя команды и на какие сервера послали конкретные данные. *)
 
 datatype ServerReadMode = BaseServerReadMode   (* Со всем указанных серверов читаются ответы *)
@@ -705,8 +707,10 @@ fun servers_stream ev c_info s_info get_cmd clean set_time_last_activity = (
 )
 
 
-fun main_handle' (listen_sock, servers, client_timeout, N) = (
+fun main_handle' (maybe_listen_sock, servers, client_timeout, N) = (
   let
+
+    val listen_sock = case maybe_listen_sock of ListenSocket sock => sock | GetListenSocket f => f ()
 
     (* ToDo *)
     val ev_timeout = Time.fromSeconds 3
@@ -840,7 +844,8 @@ fun main_handle' (listen_sock, servers, client_timeout, N) = (
       end
 
   in
-    loop () handle exc => printLog ("function loop raised an exception: " ^ exnMessage exc)
+    loop () handle exc => printLog ("function loop raised an exception: " ^ exnMessage exc);
+    case maybe_listen_sock of ListenSocket sock => Socket.close sock | _ => ()
   end
 )
 
@@ -869,10 +874,12 @@ fun main_handle () =
         sock
       end
 
-    val listen_sock = listen (listen_host, listen_port )
+    fun get_listen_sock () = listen (listen_host, listen_port)
+
+    val maybe_listen_sock = if SO_REUSEPORT = 0 then ListenSocket (get_listen_sock ()) else GetListenSocket get_listen_sock
   in
-    runWithN N main_handle' (listen_sock, servers, client_timeout, N);
-    Socket.close (listen_sock);
+    runWithN N main_handle' (maybe_listen_sock, servers, client_timeout, N);
+    case maybe_listen_sock of ListenSocket sock => Socket.close sock | _ => ();
     printLog "The End"
   end
 
