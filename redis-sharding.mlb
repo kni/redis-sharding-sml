@@ -2,15 +2,15 @@ local
 	$(SML_LIB)/basis/mlton.mlb
 	$(SML_LIB)/basis/basis.mlb
 in
-	ev/hash-array-int.sml
-	ev/ev-kqueue-mlton.sml
-	sparcl/sparcl-string.sml
+	$(USER_SML_LIB)/ev/hash-array.sml
+	$(USER_SML_LIB)/ev/ev-kqueue-mlton.sml
+	$(USER_SML_LIB)/sparcl/sparcl-string.sml
 	redis-parser.sml
 	os-constants.sml
 	local
 		$(SML_LIB)/basis/build/sources.mlb
 	in
-		mlton-string-concat/mlton-string-concat.sml
+		$(USER_SML_LIB)/mlton-string-concat/mlton-string-concat.sml
 	end
 	structure String = MltonStringConcat
 	with-mlton.sml

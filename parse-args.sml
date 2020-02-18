@@ -13,7 +13,7 @@ local
          lookIn argsPair
        end
    end
-  
+
   val progName = CommandLine.name()
 
   val help = "Using example:\n" ^
@@ -24,12 +24,12 @@ local
              "--SO_REUSEPORT=0\n"
 
   fun printError msg = print (msg ^ "\n" ^ help)
- 
+
 in
  fun getParam args =
    let
      val getArg = makeGetArg args
-     
+
      val host    = getArg("host", "0.0.0.0")
      val port    = getArg("port", "6379")
      val nodes   = getArg("nodes", "")
@@ -44,7 +44,7 @@ in
      case Int.fromString N            of NONE => (printError "Parameter 'N' must be int.\n"; NONE) | SOME N =>
      case Int.fromString SO_REUSEPORT of NONE => (printError "Parameter 'SO_REUSEPORT' must be int.\n"; NONE) | SOME SO_REUSEPORT =>
      let
-       val nodes = List.filter (fn(x,y) => (x <> "") andalso (y <> "")) 
+       val nodes = List.filter (fn(x,y) => (x <> "") andalso (y <> ""))
                    (List.map (( fn (x::y::nil) => (x, y) | _ => ("", "") ) o splitWith #":") (splitWith #"," nodes))
 
       fun nodesPortToInt []          y = SOME (List.rev y)
